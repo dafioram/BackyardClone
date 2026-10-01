@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: package.json
+
+      - run: npm install
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Check inline JS syntax
+        run: |
+          node -e 'const fs=require("fs");const h=fs.readFileSync("index.html","utf8");const i=h.indexOf("(function(){");const j=h.indexOf("</script>",i);fs.writeFileSync("/tmp/inline.js",h.slice(i,j));'
+          node --check /tmp/inline.js && echo "JS syntax OK"
+
+      - name: Run Playwright smoke tests
+        run: npx playwright test
