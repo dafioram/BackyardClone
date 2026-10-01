@@ -34,13 +34,13 @@ test.afterEach(async ({ page }) => {
   expect(page._errors).toEqual([]);
 });
 
-test('title screen shows level 1 unlocked and level 2 locked', async ({ page }) => {
+test('title screen shows level 1 unlocked, level 2 locked, endless unlocked', async ({ page }) => {
   const l1 = await page.$eval('#pvzLvlBtn1', (el) => el.classList.contains('locked'));
   const l2 = await page.$eval('#pvzLvlBtn2', (el) => el.classList.contains('locked'));
   const e = await page.$eval('#pvzLvlBtnE', (el) => el.classList.contains('locked'));
   expect(l1).toBe(false);
   expect(l2).toBe(true);
-  expect(e).toBe(true);
+  expect(e).toBe(false);
 });
 
 test('level 1 starts, plants via real taps, and shooter kills a zombie', async ({ page }) => {
@@ -51,9 +51,10 @@ test('level 1 starts, plants via real taps, and shooter kills a zombie', async (
   // Peashooter packet is ORDER[1]: px = 120 + 1*70 = 190.
   // One REAL tap-planted peashooter (proves the UI path), then debug-plant the
   // other rows for combat coverage (packet recharge is 7.5s).
+  // Lawn origin: LX=90, LY=80, CELL=80.
   await page.evaluate(() => window.__pvz.give(1000));
   await gameTap(page, 190 + 32, 32);
-  await gameTap(page, 40 + 1 * 80 + 40, 80 + 2 * 80 + 40);
+  await gameTap(page, 90 + 1 * 80 + 40, 80 + 2 * 80 + 40);
 
   let s = await snap(page);
   expect(s.plist.some((p) => p.type === 'peashooter' && p.col === 1 && p.row === 2)).toBe(true);
@@ -90,28 +91,19 @@ test('winning level 1 unlocks level 2 and persists across reload', async ({ page
   expect(l2).toBe(false);
 });
 
-test('beating level 18 unlocks endless mode', async ({ page }) => {
-  await page.evaluate(() => {
-    localStorage.setItem('pvz_save_v1', JSON.stringify({ maxLevel: 19, endlessBest: 0 }));
-  });
-  await page.reload();
-  await page.waitForFunction(() => typeof window.__pvz !== 'undefined');
-
+test('endless mode is available from the start', async ({ page }) => {
+  // Fresh save: endless button should not be locked.
   const eLocked = await page.$eval('#pvzLvlBtnE', (el) => el.classList.contains('locked'));
   expect(eLocked).toBe(false);
 
-  await page.evaluate(() => window.__pvz.start(18));
+  // Clicking it selects endless (button gets 'sel' class).
+  await page.click('#pvzLvlBtnE');
+  const eSel = await page.$eval('#pvzLvlBtnE', (el) => el.classList.contains('sel'));
+  expect(eSel).toBe(true);
+
+  // Starting launches endless level 19.
+  await page.click('#pvzStart');
   await page.waitForFunction(() => window.__pvz.snap().screen === 'playing');
-  await page.evaluate(() => window.__pvz.winNow());
-  await page.waitForSelector('#pvzWin:not(.hidden)');
-
-  const nextLabel = await page.$eval('#pvzNext', (el) => el.textContent);
-  expect(nextLabel).toBe('ENDLESS MODE');
-
-  await page.click('#pvzNext');
-  await page.waitForFunction(
-    () => window.__pvz.snap().screen === 'playing' && window.__pvz.snap().level === 19
-  );
-  const save = await page.evaluate(() => JSON.parse(localStorage.getItem('pvz_save_v1')));
-  expect(save.maxLevel).toBe(19);
+  const s = await snap(page);
+  expect(s.level).toBe(19);
 });
