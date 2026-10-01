@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="description" content="Backyard Clone — a Plants vs Zombies style tower defense for the browser.">
+<meta name="theme-color" content="#3f9142">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Backyard">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <title>Backyard Clone &mdash; Plants vs Zombies style defense</title>
 <style>
   html,body{margin:0;padding:0;background:#0b0f1a;}
@@ -95,6 +103,10 @@
 .pvz-lvlbtn.endless{grid-column:span 6;width:100%;background:#c9a86a;letter-spacing:2px;}
 @media (orientation:landscape){.pvz-wrap{max-width:min(920px,calc((100vh - 20px)*880/560));max-width:min(920px,calc((100dvh - 20px)*880/560));}.pvz-panel{padding:14px 20px;}.pvz-logo{font-size:26px;white-space:normal;}.pvz-logo span{font-size:18px;}.pvz-sub{font-size:11px;letter-spacing:3px;margin:2px 0 8px;}.pvz-levelrow{margin-bottom:8px;}.pvz-title2{font-size:22px;}.pvz-btn{min-width:200px;padding:9px 14px;font-size:15px;}.pvz-how{display:none;}}
 </style>
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){
+  navigator.serviceWorker.register('sw.js').catch(function(){});});}
+</script>
 <script>
 if(!window.hatchWidget){window.hatchWidget={
 getState:function(d){try{var v=localStorage.getItem('pvz_save_v1');if(v!==null)return JSON.parse(v);var o=localStorage.getItem('pvz_maxLevel');if(o!==null)return{maxLevel:JSON.parse(o),endlessBest:0};return d;}catch(e){return d;}},
@@ -362,7 +374,7 @@ function update(dt){
     if(z.slowT>0)z.slowT-=dt;
     z.animT+=dt*(z.eating?11:4+z.speed*0.28);
     var mouth=z.x-28,c=Math.floor((mouth-LX)/CELL);
-    var target=(c>=0&&c<COLS&&mouth>LX+c*CELL-20)?plantAt(c,z.row):null;
+    var target=(c>=0&&c<COLS&&mouth<LX+c*CELL+CELL*0.6)?plantAt(c,z.row):null;
     if(target){
       z.eating=target;target.hp-=50*dt;z.chompT-=dt;
       if(z.chompT<=0){z.chompT=0.65;SFX.chomp();burst(target.x,target.y-40,5,'#7fae4c',40,120,2.5);}

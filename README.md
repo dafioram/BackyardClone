@@ -10,11 +10,13 @@ No build step, no dependencies — just open `index.html`.
 
 **Option A — open locally:** download this repo and open `index.html` in Chrome (or any modern browser). Works offline.
 
-**Option B — GitHub Pages:**
+**Option B — install as an app (PWA):** the game is a Progressive Web App. Serve it over HTTPS (e.g. via GitHub Pages below), then use your browser's "Install" / "Add to Home Screen" option to play it fullscreen and offline like a native app.
+
+**Option C — GitHub Pages:**
 1. Push this repo to GitHub.
 2. Go to **Settings → Pages**.
 3. Under "Build and deployment", set **Source** to **Deploy from a branch**, pick your branch and the `/ (root)` folder.
-4. Your game will be live at `https://dafioram.github.io/BackyardClone/`.
+4. Your game will be live at `https://<your-username>.github.io/<repo-name>/`.
 
 ## How to play
 
@@ -52,6 +54,9 @@ Progress (unlocked levels, endless best) saves automatically in the browser via 
 ```
 backyard-clone/
 ├── index.html              # the entire game (self-contained)
+├── manifest.webmanifest    # PWA manifest (installable app)
+├── sw.js                   # service worker (offline play)
+├── icons/                  # PWA icons (192px, 512px)
 ├── tests/
 │   └── game.spec.js        # Playwright smoke tests
 ├── .github/workflows/ci.yml
