@@ -52,6 +52,7 @@
     <button class="pvz-btn ghost" id="pvzRestart">RESTART LEVEL</button>
     <button class="pvz-btn ghost" id="pvzSound">SOUND: ON</button>
     <button class="pvz-btn ghost" id="pvzQuit1">QUIT TO TITLE</button>
+    <button class="pvz-btn ghost" id="pvzExit">EXIT APP</button>
   </div>
 </div>
 <div class="pvz-ovl hidden" id="pvzOver">
@@ -102,10 +103,28 @@
 .pvz-lvlbtn.sel{outline:3px solid #ffd94d;}
 .pvz-lvlbtn.endless{grid-column:span 6;width:100%;background:#c9a86a;letter-spacing:2px;}
 @media (orientation:landscape){.pvz-wrap{max-width:min(920px,calc((100vh - 20px)*880/560));max-width:min(920px,calc((100dvh - 20px)*880/560));}.pvz-panel{padding:14px 20px;}.pvz-logo{font-size:26px;white-space:normal;}.pvz-logo span{font-size:18px;}.pvz-sub{font-size:11px;letter-spacing:3px;margin:2px 0 8px;}.pvz-levelrow{margin-bottom:8px;}.pvz-title2{font-size:22px;}.pvz-btn{min-width:200px;padding:9px 14px;font-size:15px;}.pvz-how{display:none;}}
+/* installed PWA: fill the screen, hide webpage chrome */
+@media (display-mode:standalone){
+  header,footer{display:none!important;}
+  body{min-height:100dvh;justify-content:center;}
+  main{max-width:none;width:100%;height:100dvh;max-height:100dvh;padding:0;margin:0;display:flex;align-items:center;justify-content:center;}
+  .pvz-wrap{max-width:min(100%,calc(100dvh*880/560));width:min(100%,calc(100dvh*880/560));margin:0;}
+  .pvz-wrap canvas{border-radius:0;}
+}
 </style>
 <script>
 if('serviceWorker' in navigator){window.addEventListener('load',function(){
-  navigator.serviceWorker.register('sw.js').catch(function(){});});}
+  navigator.serviceWorker.register('sw.js').then(function(reg){
+    // When an update installs (e.g. new game version), reload once so the
+    // fresh files take effect instead of the stale cache.
+    var hadController=!!navigator.serviceWorker.controller;
+    reg.addEventListener('updatefound',function(){
+      var w=reg.installing;if(!w)return;
+      w.addEventListener('statechange',function(){
+        if(w.state==='activated'&&hadController)window.location.reload();
+      });
+    });
+  }).catch(function(){});});}
 </script>
 <script>
 if(!window.hatchWidget){window.hatchWidget={
@@ -192,13 +211,14 @@ var level=1,selLevel=1;
 var sun,plants,zombies,peas,suns,parts,mowers,craters,events,evIdx,flagFracs;
 var gameT,killed,totalZ,skyT,introT,shakeT,shakeMag,flashT,winT,lostFlag;
 var selected,shovelOn,hover,plantedAt,bannerTO;
+var speedUp=1; // 1 = normal, 3 = fast-forward
 
 function resetField(){
   sun=150;plants=[];zombies=[];peas=[];suns=[];parts=[];craters=[];
   mowers=[];for(var r=0;r<ROWS;r++)mowers.push({row:r,x:52,state:'ready',bob:0});
   events=[];evIdx=0;flagFracs=[];
   gameT=0;killed=0;totalZ=0;skyT=5;introT=0;shakeT=0;shakeMag=0;flashT=0;winT=0;lostFlag=false;
-  selected=null;shovelOn=false;hover=null;plantedAt={};
+  selected=null;shovelOn=false;hover=null;plantedAt={};speedUp=1;
 }
 function cellCX(c){return LX+c*CELL+CELL/2;}
 function plantAt(c,r){for(var i=0;i<plants.length;i++){var p=plants[i];if(p.col===c&&p.row===r)return p;}return null;}
@@ -670,14 +690,21 @@ function drawTopBar(){
   ctx.fillStyle=shovelOn?'#ffe9a8':'#c9a86a';rr(sx+2,6,60,52,6);ctx.fill();
   drawShovelIcon(sx+32,32,shovelOn);
   var px=646;
-  ctx.fillStyle='#2c1f12';rr(px,20,154,24,6);ctx.fill();
+  ctx.fillStyle='#2c1f12';rr(px,20,98,24,6);ctx.fill();
   var frac=totalZ>0?killed/totalZ:0;
-  if(frac>0){ctx.fillStyle='#7ed957';rr(px+3,23,Math.max(6,148*Math.min(1,frac)),18,4);ctx.fill();}
+  if(frac>0){ctx.fillStyle='#7ed957';rr(px+3,23,Math.max(6,92*Math.min(1,frac)),18,4);ctx.fill();}
   ctx.strokeStyle='#c0392b';ctx.lineWidth=2;
-  for(var f=0;f<flagFracs.length;f++){var fx=px+3+148*flagFracs[f];
+  for(var f=0;f<flagFracs.length;f++){var fx=px+3+92*flagFracs[f];
     ctx.beginPath();ctx.moveTo(fx,16);ctx.lineTo(fx,44);ctx.stroke();
     ctx.fillStyle='#c0392b';
     ctx.beginPath();ctx.moveTo(fx,16);ctx.lineTo(fx+9,20);ctx.lineTo(fx,24);ctx.closePath();ctx.fill();}
+  // speed toggle button
+  var bx=752;
+  ctx.fillStyle='#2c1f12';rr(bx,8,52,48,8);ctx.fill();
+  ctx.fillStyle=speedUp>1?'#ffe9a8':'#c9a86a';rr(bx+2,10,48,44,6);ctx.fill();
+  ctx.fillStyle='#3d2a16';ctx.font='bold 17px system-ui,sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText(speedUp>1?'>':'>>>',bx+26,33);
   ctx.fillStyle='#2c1f12';rr(810,8,62,48,8);ctx.fill();
   ctx.fillStyle='#c9a86a';rr(812,10,58,44,6);ctx.fill();
   ctx.fillStyle='#3d2a16';ctx.font='bold 14px system-ui,sans-serif';
@@ -773,6 +800,20 @@ function quitToTitle(){
   if(selLevel>maxLevel)selLevel=maxLevel;
   updLvlGrid();$('pvzTitle').classList.remove('hidden');
 }
+function quitApp(){
+  // Closes the installed PWA / app window. Regular browser tabs block
+  // window.close() unless the page was opened by script, so fall back to
+  // telling the user to close the tab manually.
+  try{window.close();}catch(e){}
+  setTimeout(function(){
+    try{
+      if(!window.closed){
+        var b=$('pvzExit');
+        if(b)b.textContent='CLOSE THIS TAB MANUALLY';
+      }
+    }catch(e){}
+  },400);
+}
 function handleTap(x,y){
   var i;
   for(i=suns.length-1;i>=0;i--){var sn=suns[i];
@@ -782,6 +823,7 @@ function handleTap(x,y){
     for(var p=0;p<ORDER.length;p++){var px=120+p*70;
       if(x>=px-6&&x<=px+66&&y>=0&&y<=64){trySelect(ORDER[p]);return;}}
     if(x>=566&&x<=630&&y>=4&&y<=60){shovelOn=!shovelOn;if(shovelOn)selected=null;SFX.shovel();return;}
+    if(x>=752&&x<=804&&y>=8&&y<=56){speedUp=speedUp>1?1:3;SFX.click();return;}
     if(x>=810&&x<=872&&y>=8&&y<=56){pauseGame();return;}
     return;
   }
@@ -842,6 +884,7 @@ $('pvzRestart').addEventListener('click',function(){SFX.click();startLevel(level
 $('pvzSound').addEventListener('click',function(){
   muted=!muted;$('pvzSound').textContent='SOUND: '+(muted?'OFF':'ON');if(!muted)SFX.click();});
 $('pvzQuit1').addEventListener('click',function(){SFX.click();quitToTitle();});
+$('pvzExit').addEventListener('click',function(){SFX.click();quitApp();});
 $('pvzRetry').addEventListener('click',function(){SFX.click();startLevel(level);});
 $('pvzQuit2').addEventListener('click',function(){SFX.click();quitToTitle();});
 $('pvzNext').addEventListener('click',function(){SFX.click();startLevel(level+1);});
@@ -855,7 +898,7 @@ function frame(ts){
   var dt=Math.min(0.05,(ts-lastT)/1000);
   lastT=ts;
   if(!(dt>=0))dt=0;
-  if(screen==='playing')update(dt);
+  if(screen==='playing'){for(var su=0;su<speedUp;su++)update(dt);}
   render();
 }
 
@@ -867,8 +910,7 @@ if(typeof window!=='undefined'&&window.location&&String(window.location.search).
     tap:handleTap,plant:plantSeed,
     give:function(n){sun+=n;},sel:function(t){selected=t;},
     winNow:function(){if(screen==='playing'){evIdx=events.length;zombies.length=0;}},
-    snap:function(){return{screen:screen,level:level,sun:Math.round(sun),zombies:zombies.length,plants:plants.length,peas:peas.length,killed:killed,total:totalZ,mowersSpent:mowers.filter(function(m){return m.state==='spent';}).length,craters:craters.length,suns:suns.map(function(q){return{x:Math.round(q.x),y:Math.round(q.y),st:q.state};}),plist:plants.map(function(p){return{type:p.type,col:p.col,row:p.row};}),zpos:zombies.filter(function(z){return !z.dying;}).map(function(z){return{x:Math.round(z.x),row:z.row};})};}
-  };
+    snap:function(){return{screen:screen,level:level,sun:Math.round(sun),zombies:zombies.length,plants:plants.length,peas:peas.length,killed:killed,total:totalZ,speedUp:speedUp,gameT:Math.round(gameT*10)/10,mowersSpent:mowers.filter(function(m){return m.state==='spent';}).length,craters:craters.length,suns:suns.map(function(q){return{x:Math.round(q.x),y:Math.round(q.y),st:q.state};}),plist:plants.map(function(p){return{type:p.type,col:p.col,row:p.row};}),zpos:zombies.filter(function(z){return !z.dying;}).map(function(z){return{x:Math.round(z.x),row:z.row};})};}  };
 }
 
 resetField();
